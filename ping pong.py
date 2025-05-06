@@ -13,7 +13,7 @@ window.bgcolor(.1, .1, .1)
 # setup game objects =================
 # ball
 ball = turtle.Turtle()
-ball.speed(0)  # darwing speed(fastest)
+ball.speed(0)  # drawing speed(fastest)
 ball.shape("circle")
 ball.color("white")
 # scale factor * default size (20px * 20px)
@@ -42,7 +42,7 @@ player1.color("blue")
 player1.penup()
 player1.goto(x=-350, y=0)
 
-# player2
+# player2 (AI)
 player2 = turtle.Turtle()
 player2.speed(0)
 player2.shape("square")
@@ -61,6 +61,7 @@ score.write("Player1: 0 Player2: 0", align="center",
             font=("Courier", 14, "normal"))
 score.hideturtle()  # we hide the object because we only want to see the text
 p1_score, p2_score = 0, 0  # variables to hold player 1 & player 2 scores
+max_score = 3  # winning score
 
 # Players Movement ====================
 players_speed = 20
@@ -74,21 +75,10 @@ def p1_move_down():
     player1.sety(player1.ycor() - players_speed)
 
 
-def p2_move_up():
-    player2.sety(player2.ycor() + players_speed)
-
-
-def p2_move_down():
-    player2.sety(player2.ycor() - players_speed)
-
-
-# Get users inputs (Key Bindings)
+# Get Player 1 inputs (Key Bindings)
 window.listen()  # tell the window to expect user inputs
 window.onkeypress(p1_move_up, "w")  # ensure the keyboard in "En" and "small"
 window.onkeypress(p1_move_down, "s")
-window.onkeypress(p2_move_up, "Up")
-window.onkeypress(p2_move_down, "Down")
-
 
 # game loop ==========================
 while True:
@@ -99,38 +89,71 @@ while True:
     ball.sety(ball.ycor() + (ball_dy * ball_speed))
 
     # ball & borders collisions
-    if (ball.ycor() > 290):   # 290 => 300(top border) - 10(half ball size)
+    # collision with player 1
+    if (ball.ycor() > 290):  # 290 => 300(top border) - 10(half ball size)
         ball.sety(290)
         ball_dy *= -1  # invert Y direction
 
-    if (ball.ycor() < -290):   # 290 => 300(top border) - 10(half ball size)
+    # collision with player 2
+    if (ball.ycor() < -290):  # 290 => 300(top border) - 10(half ball size)
         ball.sety(-290)
         ball_dy *= -1  # invert Y direction
 
-    # ball & players collisions =====================
-    # collision with player 1
+    # ball & players collisions
     if ball.xcor() < -340 and ball.xcor() > -350 and ball.ycor() > (player1.ycor()-60) and ball.ycor() < (player1.ycor()+60):
         ball.setx(-340)
-        ball_dx *= -1
+        ball_dx *= -1  # invert X direction
 
-    # collision with player 2
     if ball.xcor() > 340 and ball.xcor() < 350 and ball.ycor() > (player2.ycor()-60) and ball.ycor() < (player2.ycor()+60):
         ball.setx(340)
-        ball_dx *= -1
+        ball_dx *= -1  # invert X direction
 
     # score handling
     if (ball.xcor() > 390):
         ball.goto(0, 0)
-        ball_dx *= -1  # invert X direction
-        score.clear()
+        ball_dx *= -1
         p1_score += 1
+        score.clear()
         score.write(f"Player1: {p1_score} Player2: {p2_score}", align="center",
                     font=("Courier", 14, "normal"))
+        if p1_score == max_score:
+            score.goto(0, 0)
+            score.write("Player 1 Wins!", align="center",
+                        font=("Courier", 24, "bold"))
+            turtle.update()
+            turtle.time.sleep(2)
+            break
 
     if (ball.xcor() < -390):
         ball.goto(0, 0)
-        ball_dx *= -1  # invert X direction
-        score.clear()
+        ball_dx *= -1
         p2_score += 1
+        score.clear()
         score.write(f"Player1: {p1_score} Player2: {p2_score}", align="center",
                     font=("Courier", 14, "normal"))
+        if p2_score == max_score:
+            score.goto(0, 0)
+            score.write("Player 2 Wins!", align="center",
+                        font=("Courier", 24, "bold"))
+            turtle.update()
+            turtle.time.sleep(2)
+            break
+
+    # Player 2 (Goal-Based Agent)
+    if ball_dx > 0:  # Only move if ball is heading toward player 2
+        time_until_reach = (player2.xcor() - ball.xcor()) / \
+            (ball_dx * ball_speed)
+        predicted_y = ball.ycor() + ball_dy * ball_speed * time_until_reach
+
+        # Reflect off top/bottom walls if needed
+        while abs(predicted_y) > 290:
+            if predicted_y > 290:
+                predicted_y = 580 - predicted_y
+            elif predicted_y < -290:
+                predicted_y = -580 - predicted_y
+
+        # Move towards predicted y position
+        if player2.ycor() < predicted_y - 10:
+            player2.sety(player2.ycor() + players_speed * 0.5)
+        elif player2.ycor() > predicted_y + 10:
+            player2.sety(player2.ycor() - players_speed * 0.5)
